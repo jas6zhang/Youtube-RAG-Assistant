@@ -1,0 +1,54 @@
+#rag-overlay {
+    position: fixed;
+    background-color: hsl(0, 0%, 100%);
+    border-color: #ccc;
+    border: "1px solid";
+    padding: 16px;
+}
+
+#youtube-rag-ui {
+    font-family: 'YouTube Sans', 'Roboto', Arial, sans-serif;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: none;
+    border-radius: 12px;
+}
+
+#youtube-rag-ui h3 {
+    color: #0f0f0f;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+#question-input {
+    font-family: inherit;
+    font-size: 14px;
+    border: 1px solid #e5e5e5;
+    transition: border-color 0.2s;
+}
+
+#question-input:focus {
+    outline: none;
+    border-color: #065fd4;
+}
+
+#ask-button {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+#ask-button:hover {
+    background-color: #cc0000 !important;
+}
+
+#ask-button:disabled {
+    background-color: #999 !important;
+    cursor: not-allowed;
+}
+
+#answer {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #0f0f0f;
+}
