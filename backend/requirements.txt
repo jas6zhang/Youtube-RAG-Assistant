@@ -9,7 +9,6 @@ youtube-transcript-api==0.6.1
 pydantic==2.5.0
 python-dotenv==1.0.0
 httpx>=0.25.0
-yt-dlp>=2023.12.30
 
 # System dependencies required (install via apt-get):
 # - ffmpeg
