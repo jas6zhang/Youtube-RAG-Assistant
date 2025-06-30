@@ -81,8 +81,8 @@ function injectUI() {
 
   container.innerHTML = `
     <h3 style="margin: 0 0 10px 0; color: #333;">Youtube Video Assistant</h3>
-    <textarea id="question-input" placeholder="Ask a question about this video..." 
-              style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; margin-bottom: 10px;"></textarea>
+    <textarea id="question-input" placeholder="Ask a question about this video. The more detailed the question, the more context the assistant will have." 
+              style="width: 80%; height: 80px; padding-right: 16px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; margin-bottom: 10px;"></textarea>
     <button id="ask-button" style="width: 100%; padding: 8px; background: red; color: white; border: none; border-radius: 4px; cursor: pointer;">
       Ask Question
     </button>
@@ -166,7 +166,7 @@ function askQuestion(videoId) {
       const timestampMatch = response.match(/TIMESTAMPS:\s*(.+)/s)
       console.log("Timestamp Match", timestampMatch)
       if (timestampMatch) {
-        html += `<strong>Most Relevant Timestamps:</strong>`;
+        html += `<strong>Most Relevant Timestamps: </strong>`;
         if (timestampMatch[1] == 'NONE' || timestampMatch[1] == 'none') {
           html += `No related content to your question was found at any timestamps. Please check your spelling or ask another question.`
         } else {

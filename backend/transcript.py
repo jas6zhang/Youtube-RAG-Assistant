@@ -13,7 +13,7 @@ def fetch_transcript_openai(video_id: str):
         with tempfile.TemporaryDirectory() as temp_dir:
             audio_path = download_audio(video_id, temp_dir)
             print("Downloaded Audio")
-            sped_up_audio_path = speed_up_audio(audio_path)
+            sped_up_audio_path = speed_up_audio(audio_path, temp_dir)
             print("Sped Up Audio")
             transcript = transcribe_with_openai(sped_up_audio_path)
             print("Audio Transcribed")
@@ -66,13 +66,15 @@ def speed_up_audio(audio_path: str, temp_dir: str) -> str:
                 "-i",
                 audio_path,
                 "-af",
-                "highpass=f=200",
-                "-filter:a",
-                "atempo=3.0" "-ac",
-                "1" "-b:a",
+                "highpass=f=200,atempo=3.0",
+                "-ac",
+                "1",
+                "-b:a",
                 "64k",
                 sped_up_audio_path,
-            ]
+            ],
+            check=True,
+            capture_output=True,
         )
         return sped_up_audio_path
     except subprocess.CalledProcessError as e:
