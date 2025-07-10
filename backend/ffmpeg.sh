@@ -7,6 +7,9 @@ ffmpeg -i "video-audio.m4a" -filter:a "atempo=3.0" -ac 1 -b:a 64k video-audio-3x
 # Send it along to OpenAI for a transcription
 
 # alternative: use whisper (for local)  
+# could also have a local option but issue is that it will be a lot less accurate
+# Whisper Open Source vs OpenAI Closed Service. 
+
 # OpenAI charges for transcription based on audio tokens, which scale with the duration of the input
 curl --request POST \
   --url https://api.openai.com/v1/audio/transcriptions \
