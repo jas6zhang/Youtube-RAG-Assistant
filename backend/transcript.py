@@ -6,6 +6,7 @@ from openai import OpenAI
 import tempfile
 
 ytt_api = YouTubeTranscriptApi()
+SPEEDUP_FACTOR = 2.0  # Set this to your actual speedup factor
 
 
 def fetch_transcript_openai(video_id: str):
@@ -18,8 +19,11 @@ def fetch_transcript_openai(video_id: str):
             transcript = transcribe_with_openai(sped_up_audio_path)
             print("Audio Transcribed")
 
+            # print("youtube_transcription", fetch_transcript_youtube(video_id))
+
             return transcript
     except Exception as e:
+        print(repr(e))
         print(f"Error in fetching transcript: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -32,6 +36,7 @@ def download_audio(video_id: str, temp_dir: str):
     try:
         # to run similar to a script line
         # either one string, or a list where each command is an item in the list
+        print("Downloading audio")
         subprocess.run(
             [
                 "yt-dlp",
@@ -40,6 +45,7 @@ def download_audio(video_id: str, temp_dir: str):
                 "--extract-audio",
                 "--audio-format",
                 "m4a",
+                "--no-check-certificate",
                 "-o",
                 audio_path,
                 video_url,
@@ -66,7 +72,7 @@ def speed_up_audio(audio_path: str, temp_dir: str) -> str:
                 "-i",
                 audio_path,
                 "-af",
-                "highpass=f=200,atempo=3.0",
+                f"highpass=f=200,atempo={SPEEDUP_FACTOR}",
                 "-ac",
                 "1",
                 "-b:a",
@@ -93,18 +99,20 @@ def transcribe_with_openai(audio_path: str) -> list:
         # returns verbose transcription object
         with open(audio_path, "rb") as audio_file:
             transcription = client.audio.transcriptions.create(
-                model="gpt-4o-transcribe",
+                # model="gpt-4o-transcribe",
+                model="whisper-1",
                 file=audio_file,
                 response_format="verbose_json",
                 timestamp_granularities=["segment"],
             )
+        print("transcription", transcription)
         segments = []
 
         for segment in transcription.segments:
             segments.append(
                 {
-                    "start": round(segment.start, 2),
-                    "end": round(segment.end, 2),
+                    "start": round(segment.start * SPEEDUP_FACTOR, 2),
+                    "end": round(segment.end * SPEEDUP_FACTOR, 2),
                     "text": segment.text.strip(),
                 }
             )

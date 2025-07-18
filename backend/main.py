@@ -55,15 +55,16 @@ def test():
 @app.post("/load_transcript")
 def load_transcript(req: TranscriptRequest):
     try:
-        transcript = fetch_transcript_openai(req.video_id)
-        # print(transcript)
-        chunks = vectorStore.split_text_to_chunks(transcript)
-        texts = [chunk["text"] for chunk in chunks]
-        # metadatas must be a list of dicts, not floats
-        metadatas = [{"start": chunk["start"], "end": chunk["end"]} for chunk in chunks]
-        vectorStore.store_chunks(req.video_id, texts, metadatas)
-        # need to retunr status code and response
-        return {"status": "success", "chunks_stored": len(chunks)}
+        if not vectorStore.check_exists(req.video_id):
+            transcript = fetch_transcript_openai(req.video_id)
+            chunks = vectorStore.split_text_to_chunks(transcript)
+            texts = [chunk["text"] for chunk in chunks]
+            metadatas = [
+                {"start": chunk["start"], "end": chunk["end"]} for chunk in chunks
+            ]
+            vectorStore.store_chunks(req.video_id, texts, metadatas)
+
+            return {"status": "success", "chunks_stored": len(chunks)}
     except Exception as e:
         print("Exception", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -81,7 +82,9 @@ def ask_question(req: QuestionRequest):
         print("Metadata", returned_metadatas)
 
         prompt = f"""Based on the following transcript chunks from a YouTube video, 
-        answer the user's question as accurately as possible using only the provided context and be concise.
+        answer the user's question using the provided context and inferring additional context if there are 
+        any inaccuracies or more details are needed. Only provide the answer to the question, the rest of the response is not needed. Provide a response if 
+        no relevant information was found for the user (please provide a layer of transparency between the tool workings and the user, do not say things like transcript chunks).
 
         User question: {req.question}
 
@@ -89,8 +92,9 @@ def ask_question(req: QuestionRequest):
 
         Timestamp to Transcript Chunks: {returned_metadatas}
         
-        IMPORTANT: After your answer, list ONLY the timestamps that directly support your answer, 
-        in TIMESTAMPS: times go here in seconds seperated by commas and by order of relevance (most relevant chunk goes first). If no specific timestamps are relevant, write: TIMESTAMPS: none"""
+        IMPORTANT: After your answer, list the timestamps that directly support your answer. Please don't just only try to match
+        the chunks that have the most matched words to the user's question but actually what you can infer gives the most accurate and context to the question.
+        Please respond in TIMESTAMPS: times go here in seconds seperated by commas and by order of relevance (most relevant chunk goes first). If no specific timestamps are relevant, write: TIMESTAMPS: none"""
 
         client = OpenAI()
         completion = client.chat.completions.create(

@@ -7,12 +7,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Use persistent storage instead of in-memory
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 
 
 # 300 tokens / chars, need to build custom chunker
 # because text splitter loses timestamp context
+
+
+def check_exists(video_id):
+    collection = chroma_client.get_or_create_collection(name=f"transcript_{video_id}")
+    return collection.count() > 0
 
 
 # return chunks with metadata
