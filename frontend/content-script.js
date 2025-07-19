@@ -4,9 +4,10 @@ function getVideoId() {
 }
 
 function loadTranscript(videoId) {
-  console.log('typeof videoId', typeof videoId); 
-  console.log('videoId', videoId);
-  fetch('http://localhost:8000/load_transcript', {
+  // console.log('typeof videoId', typeof videoId); 
+  // console.log('videoId', videoId);
+  fetch('https://youtube-rag-assistant-7.onrender.com/load_transcript', {
+  // fetch('http://localhost:8000/load_transcript', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -149,7 +150,8 @@ function askQuestion(videoId) {
   answerDiv.style.display = 'block';
   answerDiv.innerHTML = 'Loading answer...';
   
-  fetch('http://localhost:8000/ask_question', {
+  // fetch('http://localhost:8000/ask_question', {
+  fetch('https://youtube-rag-assistant-7.onrender.com/ask_question', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

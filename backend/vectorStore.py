@@ -76,7 +76,7 @@ def split_text_to_chunks(document, chunk_size=50, max_pause=1.25, chunk_overlap=
             }
         )
 
-    print("Chunks Here", chunks)
+    # print("Chunks Here", chunks)
     return chunks
 
 
@@ -94,10 +94,9 @@ def embed_texts(texts):
 def store_chunks(video_id, texts, metadatas=None):
     filtered_texts = [t for t in texts if isinstance(t, str) and t.strip()]
     if not filtered_texts:
-        print("No non-empty texts to store.")
+        # print("No non-empty texts to store.")
         return
     embeddings = embed_texts(filtered_texts)
-    print("Issue Here")
     # ChromaDB expects string IDs
     ids = [str(i) for i in range(len(filtered_texts))]
     collection = chroma_client.get_or_create_collection(name=f"transcript_{video_id}")
@@ -115,7 +114,6 @@ def query_chunks(video_id, query, n_results):
 
     # Debug: Check if collection has any data
     count = collection.count()
-    print(f"Collection has {count} documents")
 
     if count == 0:
         print("WARNING: Collection is empty! No transcript was loaded for this video.")

@@ -1,6 +1,7 @@
 from youtube_transcript_api import YouTubeTranscriptApi
 from fastapi import HTTPException
 import os
+import requests
 import subprocess
 from openai import OpenAI
 import tempfile
@@ -23,7 +24,7 @@ def fetch_transcript_openai(video_id: str):
 
             return transcript
     except Exception as e:
-        print(repr(e))
+        # print(repr(e))
         print(f"Error in fetching transcript: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -105,7 +106,7 @@ def transcribe_with_openai(audio_path: str) -> list:
                 response_format="verbose_json",
                 timestamp_granularities=["segment"],
             )
-        print("transcription", transcription)
+        # print("transcription", transcription)
         segments = []
 
         for segment in transcription.segments:
@@ -125,12 +126,11 @@ def transcribe_with_openai(audio_path: str) -> list:
 
 # using youtube captions as transcription
 def fetch_transcript_youtube(video_id: str) -> str:
-    print("video_id for", video_id)
+    # print("video_id for", video_id)
     try:
         transcript = ytt_api.fetch(video_id)
-        # transcript = ytt_api.get_transcript(video_id)
 
-        print("Transcript Retrieved: ", transcript)
+        # print("Transcript Retrieved: ", transcript)
 
         return [
             {

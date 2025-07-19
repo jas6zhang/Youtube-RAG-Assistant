@@ -3,7 +3,7 @@
     "name": "YouTube RAG Helper",
     "version": "1.0.0",
     "permissions": ["scripting", "activeTab"],
-    "host_permissions": ["http://localhost:8000/*"],
+    "host_permissions": ["http://localhost:8000/*", "https://youtube-rag-assistant-7.onrender.com/*"],
     "content_scripts": [{
         "matches": ["*://www.youtube.com/watch*"],
         "js": ["moment.min.js", "content-script.js"],

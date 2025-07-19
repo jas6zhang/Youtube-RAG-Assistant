@@ -2,6 +2,7 @@
 from typing import Union
 import os
 from dotenv import load_dotenv
+import requests
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,7 +57,17 @@ def test():
 def load_transcript(req: TranscriptRequest):
     try:
         if not vectorStore.check_exists(req.video_id):
-            transcript = fetch_transcript_openai(req.video_id)
+            url = f'https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id={req.video_id}&key={os.getenv("YOUTUBE_API_KEY")}'
+            res = requests.get(url).json()
+            caption = res["items"][0]["contentDetails"]["caption"]
+
+            transcript = []
+            if caption == "true":
+                print("Fetch with Youtube")
+                transcript = fetch_transcript_youtube(req.video_id)
+            else:
+                print("Fetch with OpenAI")
+                transcript = fetch_transcript_openai(req.video_id)
             chunks = vectorStore.split_text_to_chunks(transcript)
             texts = [chunk["text"] for chunk in chunks]
             metadatas = [
@@ -66,7 +77,7 @@ def load_transcript(req: TranscriptRequest):
 
             return {"status": "success", "chunks_stored": len(chunks)}
     except Exception as e:
-        print("Exception", e)
+        # print("Exception", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -77,9 +88,9 @@ def ask_question(req: QuestionRequest):
         returned_chunks = results["documents"][
             0
         ]  # can make multiple queries at once # ?
-        print("Documents", returned_chunks)
+        # print("Documents", returned_chunks)
         returned_metadatas = results["metadatas"][0]
-        print("Metadata", returned_metadatas)
+        # print("Metadata", returned_metadatas)
 
         prompt = f"""Based on the following transcript chunks from a YouTube video, 
         answer the user's question using the provided context and inferring additional context if there are 
@@ -108,7 +119,7 @@ def ask_question(req: QuestionRequest):
                 {"role": "user", "content": prompt},
             ],
         )
-        print("OPEN AI RESPONSE: ", completion.choices[0].message.content)
+        # print("OPEN AI RESPONSE: ", completion.choices[0].message.content)
 
         return {"status": "success", "response": completion.choices[0].message.content}
     except Exception as e:
