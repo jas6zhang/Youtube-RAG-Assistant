@@ -1,11 +1,3 @@
-function getYoutubeVideo() {
-  const videoId = getVideoId();
-  console.log('videoId Obtained', videoId);
-  return `https://www.youtube.com/watch?v=${videoId}`;
-}
-
-// only returns the query portion of the link 
-
 function getVideoId() {
   const params = new URLSearchParams(window.location.search);
   return params.get("v");
@@ -23,6 +15,11 @@ function loadTranscript(videoId) {
   })
     .then(response => response.json())
     .then(data => {
+      const askButton = document.getElementById('ask-button');
+      const questionInput = document.getElementById('question-input');
+      askButton.disabled = false;
+      askButton.textContent = 'Ask Question';
+      questionInput.disabled = false;
       console.log('Transcript Loaded:', data);
       showNotification('Transcript loaded successfully!', 'success');
     })
@@ -53,19 +50,32 @@ function showNotification(message, type='success') {
   }, 3000);
 }
 
+const TIMEOUT = 500; 
+
 function injectUI() {
   // Find the sidebar with recommended videos
   const secondary = document.querySelector('#secondary');
   if (!secondary) {
     // Try again later if not found (YouTube loads dynamically)
-    setTimeout(injectUI, 500);
+    setTimeout(injectUI, TIMEOUT);
     return;
   }
 
   // Avoid duplicate insertion
-  if (document.getElementById('youtube-rag-ui')) return;
+  if (document.getElementById('youtube-rag-ui')) {
+    document.getElementById('question-input').value = '';
+    document.getElementById('answer').innerHTML = '';
+    document.getElementById('answer').style.display = 'none';
+  
+    const askButton = document.getElementById('ask-button');
+    askButton.disabled = true; 
+    askButton.textContent = 'Loading transcript...';
+    
+    const questionInput = document.getElementById('question-input')
+    questionInput.disabled = true; 
+    return;
+  }
 
-  // Create your UI container
   const container = document.createElement('div');
   container.id = 'youtube-rag-ui';
   container.style.cssText = `
@@ -82,7 +92,7 @@ function injectUI() {
   container.innerHTML = `
     <h3 style="margin: 0 0 10px 0; color: #333;">Youtube Video Assistant</h3>
     <textarea id="question-input" placeholder="Ask a question about this video. The more detailed the question, the more context the assistant will have." 
-              style="width: 80%; height: 80px; padding-right: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; margin-bottom: 10px;"></textarea>
+              style="width: 95%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; margin-bottom: 10px;"></textarea>
     <button id="ask-button" style="width: 100%; padding: 8px; background: red; color: white; border: none; border-radius: 4px; cursor: pointer;">
       Ask Question
     </button>
@@ -97,19 +107,23 @@ function injectUI() {
   // Insert as the first child of the sidebar
   secondary.insertBefore(container, secondary.firstChild);
 
-  // Add event listener for ask button
+  const askButton = document.getElementById('ask-button');
+  askButton.disabled = true; 
+  askButton.textContent = 'Loading transcript...';
   
-  const videoId = getVideoId(); 
+  const questionInput = document.getElementById('question-input')
+  questionInput.disabled = true; 
   
-  document.getElementById('ask-button').addEventListener('click',() => askQuestion(videoId))
-  document.getElementById('question-input').addEventListener('keydown', (e) => {
+  askButton.addEventListener('click', () => askQuestion(getVideoId()))
+  questionInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      askQuestion(videoId);
+      askQuestion(getVideoId());
     }
   }); 
 }
 
+const N_RESULTS = 20
 const API_COOLDOWN = 1000 // rate limit
 let last_question_asked = 0
 
@@ -143,7 +157,7 @@ function askQuestion(videoId) {
     body: JSON.stringify({
       video_id: videoId, 
       question: question,
-      n_results: 20
+      n_results: N_RESULTS
     })
   })
     .then(response => {
@@ -157,18 +171,14 @@ function askQuestion(videoId) {
       const textResponseMatch = response.match(/^(.*?)\s*TIMESTAMPS:/s);
       let html = ""; 
       if (textResponseMatch) {
-        html += `<strong>Answer:</strong><br>${textResponseMatch[1].trim()}<br><br>`;
+        html += `<strong>Answer:</strong> ${textResponseMatch[1].trim()}<br><br>`;
       }
-      // else {
-      //   html += `<strong>Answer:</strong><br>${response}<br><br>`;
-      // }
-      // add s to match newlines as well (dot doesn't)
       const timestampMatch = response.match(/TIMESTAMPS:\s*(.+)/s)
       console.log("Timestamp Match", timestampMatch)
       if (timestampMatch) {
         html += `<strong>Most Relevant Timestamps: </strong>`;
         if (timestampMatch[1] == 'NONE' || timestampMatch[1] == 'none') {
-          html += `No related content to your question was found at any timestamps. Please check your spelling or ask another question.`
+          html += `No related content to your question was found at any timestamps.`
         } else {
           const timestampStrings = timestampMatch[1].split(',').map(s => s.trim());
           html += '<ul style="padding-left: 16px;">';
@@ -211,7 +221,7 @@ function askQuestion(videoId) {
     .finally(() => {
       askButton.textContent = 'Ask Question';
       askButton.disabled = false;
-      last_question_asked = currentTime; // Reset rate limiting on both success and error
+      last_question_asked = currentTime; 
     });
 }
 
@@ -219,7 +229,6 @@ const waitForYoutubeVideo = (selector, callback) => {
   const interval = setInterval(() => {
     if (document.querySelector(selector)) {
       clearInterval(interval);
-      // Get video ID and load transcript
       const videoId = getVideoId();
       if (videoId) {
         console.log("Retrieved Video ID", videoId)
@@ -230,4 +239,7 @@ const waitForYoutubeVideo = (selector, callback) => {
   }, 300)
 }
 
-waitForYoutubeVideo('ytd-watch-flexy', injectUI)
+waitForYoutubeVideo('ytd-watch-flexy', injectUI);
+window.addEventListener('yt-navigate-finish', () => {
+  waitForYoutubeVideo('ytd-watch-flexy', injectUI);
+});
