@@ -57,15 +57,9 @@ def test():
 def load_transcript(req: TranscriptRequest):
     try:
         if not vectorStore.check_exists(req.video_id):
-            url = f'https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id={req.video_id}&key={os.getenv("YOUTUBE_API_KEY")}'
-            res = requests.get(url).json()
-            caption = res["items"][0]["contentDetails"]["caption"]
-
-            transcript = []
-            if caption == "true":
-                print("Fetch with Youtube")
+            try:
                 transcript = fetch_transcript_youtube(req.video_id)
-            else:
+            except Exception as e:
                 print("Fetch with OpenAI")
                 transcript = fetch_transcript_openai(req.video_id)
             chunks = vectorStore.split_text_to_chunks(transcript)
@@ -76,8 +70,9 @@ def load_transcript(req: TranscriptRequest):
             vectorStore.store_chunks(req.video_id, texts, metadatas)
 
             return {"status": "success", "chunks_stored": len(chunks)}
+        print("Already Stored")
     except Exception as e:
-        # print("Exception", e)
+        print("Exception", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
