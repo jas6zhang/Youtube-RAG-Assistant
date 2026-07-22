@@ -9,6 +9,9 @@ import tempfile
 ytt_api = YouTubeTranscriptApi()
 SPEEDUP_FACTOR = 2.0  # Set this to your actual speedup factor
 
+# Reuse a single client rather than constructing one per transcription.
+openai_client = OpenAI()
+
 
 def fetch_transcript_openai(video_id: str):
     try:
@@ -91,15 +94,13 @@ def speed_up_audio(audio_path: str, temp_dir: str) -> str:
 
 
 def transcribe_with_openai(audio_path: str) -> list:
-    client = OpenAI()
-
     # read bytes to decode audio
     try:
         # default json
 
         # returns verbose transcription object
         with open(audio_path, "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
+            transcription = openai_client.audio.transcriptions.create(
                 # model="gpt-4o-transcribe",
                 model="whisper-1",
                 file=audio_file,

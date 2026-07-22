@@ -7,7 +7,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-chroma_client = chromadb.PersistentClient(path="./chroma_db")
+# Path is configurable so it can point at a mounted persistent disk in
+# production (Render's default filesystem is ephemeral and wiped on every
+# deploy/restart, which would silently re-embed every video and re-bill us).
+CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "./chroma_db")
+chroma_client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+
+# Reuse a single client instead of instantiating one per request.
+openai_client = OpenAI()
 
 
 # 300 tokens / chars, need to build custom chunker
@@ -82,8 +89,6 @@ def split_text_to_chunks(document, chunk_size=50, max_pause=1.25, chunk_overlap=
 
 def embed_texts(texts):
     # print("Embed Texts", texts)
-    openai_client = OpenAI()
-
     response = openai_client.embeddings.create(
         input=texts, model="text-embedding-3-small"
     )

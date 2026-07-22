@@ -1,36 +1,109 @@
+const API_BASE = 'https://youtube-rag-assistant-7.onrender.com';
+// const API_BASE = 'http://localhost:8000';
+
+// Light gating so random traffic can't hit the API directly. This is
+// obfuscation, not real security (anyone can read an extension's source) —
+// the real protection is server-side rate limiting. Must match the API_KEY
+// env var set on the backend. Leave empty to run against an unauthenticated
+// (dev) backend.
+const API_KEY = '';
+
+const N_RESULTS = 20;
+const API_COOLDOWN = 1000; // client-side rate limit
+const TIMEOUT = 500;
+const STATUS_POLL_INTERVAL = 1500;
+
+let last_question_asked = 0;
+
+function apiHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (API_KEY) headers['X-API-Key'] = API_KEY;
+  return headers;
+}
+
 function getVideoId() {
   const params = new URLSearchParams(window.location.search);
   return params.get("v");
 }
 
+function formatTime(totalSeconds) {
+  const s = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+  const m = Math.floor((totalSeconds / 60) % 60);
+  const h = Math.floor(totalSeconds / 3600);
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s}`;
+  }
+  return `${m}:${s}`;
+}
+
+const STATUS_LABELS = {
+  pending: 'Preparing…',
+  loading_captions: 'Reading captions…',
+  transcribing: 'Transcribing audio (this can take a minute)…',
+  ready: 'Ask Question',
+  error: 'Transcript unavailable',
+  unknown: 'Loading transcript…',
+};
+
+function setLoadingState(label, { enabled }) {
+  const askButton = document.getElementById('ask-button');
+  const questionInput = document.getElementById('question-input');
+  if (!askButton || !questionInput) return;
+  askButton.textContent = label;
+  askButton.disabled = !enabled;
+  questionInput.disabled = !enabled;
+}
+
 function loadTranscript(videoId) {
-  // console.log('typeof videoId', typeof videoId); 
-  // console.log('videoId', videoId);
-  fetch('https://youtube-rag-assistant-7.onrender.com/load_transcript', {
-  // fetch('http://localhost:8000/load_transcript', {
+  setLoadingState('Loading transcript…', { enabled: false });
+  fetch(`${API_BASE}/load_transcript`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    }, 
-    body: JSON.stringify({video_id: videoId})
+    headers: apiHeaders(),
+    body: JSON.stringify({ video_id: videoId })
   })
-    .then(response => response.json())
-    .then(data => {
-      const askButton = document.getElementById('ask-button');
-      const questionInput = document.getElementById('question-input');
-      askButton.disabled = false;
-      askButton.textContent = 'Ask Question';
-      questionInput.disabled = false;
-      console.log('Transcript Loaded:', data);
-      showNotification('Transcript loaded successfully!', 'success');
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
     })
+    .then(() => pollTranscriptStatus(videoId))
     .catch(err => {
       console.error('Error Loading transcript:', err);
+      setLoadingState('Transcript unavailable', { enabled: false });
       showNotification('Error loading transcript', 'error');
     });
 }
 
-function showNotification(message, type='success') {
+function pollTranscriptStatus(videoId) {
+  const poll = () => {
+    // Bail out if the user navigated to a different video mid-poll.
+    if (getVideoId() !== videoId) return;
+
+    fetch(`${API_BASE}/transcript_status/${videoId}`, { headers: apiHeaders() })
+      .then(response => response.json())
+      .then(data => {
+        const status = data.status || 'unknown';
+        const label = STATUS_LABELS[status] || STATUS_LABELS.unknown;
+
+        if (status === 'ready') {
+          setLoadingState('Ask Question', { enabled: true });
+          showNotification('Transcript loaded successfully!', 'success');
+        } else if (status === 'error') {
+          setLoadingState('Transcript unavailable', { enabled: false });
+          showNotification(data.detail || 'Transcript unavailable', 'error');
+        } else {
+          setLoadingState(label, { enabled: false });
+          setTimeout(poll, STATUS_POLL_INTERVAL);
+        }
+      })
+      .catch(err => {
+        console.error('Error polling transcript status:', err);
+        setTimeout(poll, STATUS_POLL_INTERVAL);
+      });
+  };
+  poll();
+}
+
+function showNotification(message, type = 'success') {
   const notification = document.createElement('div');
   notification.style.cssText = `
     position: fixed;
@@ -45,13 +118,11 @@ function showNotification(message, type='success') {
   `;
   notification.textContent = message;
   document.body.appendChild(notification);
-  
+
   setTimeout(() => {
     notification.remove();
   }, 3000);
 }
-
-const TIMEOUT = 500; 
 
 function injectUI() {
   // Find the sidebar with recommended videos
@@ -67,13 +138,7 @@ function injectUI() {
     document.getElementById('question-input').value = '';
     document.getElementById('answer').innerHTML = '';
     document.getElementById('answer').style.display = 'none';
-  
-    const askButton = document.getElementById('ask-button');
-    askButton.disabled = true; 
-    askButton.textContent = 'Loading transcript...';
-    
-    const questionInput = document.getElementById('question-input')
-    questionInput.disabled = true; 
+    setLoadingState('Loading transcript…', { enabled: false });
     return;
   }
 
@@ -92,7 +157,7 @@ function injectUI() {
 
   container.innerHTML = `
     <h3 style="margin: 0 0 10px 0; color: #333;">Youtube Video Assistant</h3>
-    <textarea id="question-input" placeholder="Ask a question about this video. The more detailed the question, the more context the assistant will have." 
+    <textarea id="question-input" placeholder="Ask a question about this video. The more detailed the question, the more context the assistant will have."
               style="width: 95%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; margin-bottom: 10px;"></textarea>
     <button id="ask-button" style="width: 100%; padding: 8px; background: red; color: white; border: none; border-radius: 4px; cursor: pointer;">
       Ask Question
@@ -108,123 +173,155 @@ function injectUI() {
   // Insert as the first child of the sidebar
   secondary.insertBefore(container, secondary.firstChild);
 
+  setLoadingState('Loading transcript…', { enabled: false });
+
   const askButton = document.getElementById('ask-button');
-  askButton.disabled = true; 
-  askButton.textContent = 'Loading transcript...';
-  
-  const questionInput = document.getElementById('question-input')
-  questionInput.disabled = true; 
-  
-  askButton.addEventListener('click', () => askQuestion(getVideoId()))
+  const questionInput = document.getElementById('question-input');
+  askButton.addEventListener('click', () => askQuestion(getVideoId()));
   questionInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       askQuestion(getVideoId());
     }
-  }); 
+  });
 }
 
-const N_RESULTS = 20
-const API_COOLDOWN = 1000 // rate limit
-let last_question_asked = 0
+function renderAnswer(answerDiv, fullText) {
+  // The model appends a "TIMESTAMPS:" section we render separately as
+  // citations — hide it from the streamed answer prose.
+  const idx = fullText.search(/TIMESTAMPS:/i);
+  const answerText = idx >= 0 ? fullText.slice(0, idx) : fullText;
+  answerDiv.innerHTML =
+    `<strong>Answer:</strong> ${escapeHtml(answerText.trim()).replace(/\n/g, '<br>')}`;
+}
 
-function askQuestion(videoId) {
+function renderCitations(answerDiv, citations) {
+  if (!citations || citations.length === 0) {
+    const note = document.createElement('div');
+    note.style.cssText = 'margin-top: 10px;';
+    note.innerHTML =
+      '<strong>Most Relevant Timestamps:</strong> No related content to your question was found.';
+    answerDiv.appendChild(note);
+    return;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'margin-top: 10px;';
+  let html = '<strong>Most Relevant Timestamps:</strong><ul style="padding-left: 16px; margin: 6px 0 0 0;">';
+  citations.forEach(cite => {
+    const label = formatTime(cite.seconds);
+    const snippet = cite.snippet ? escapeHtml(cite.snippet) : '';
+    html += `<li style="margin-bottom: 6px;">
+      <a href="#" class="timestamp-link" data-seconds="${cite.seconds}" style="font-weight: bold;">${label}</a>
+      ${snippet ? `<div style="font-size: 12px; color: #555; margin-top: 2px;">“${snippet}”</div>` : ''}
+    </li>`;
+  });
+  html += '</ul>';
+  wrapper.innerHTML = html;
+  answerDiv.appendChild(wrapper);
+
+  wrapper.querySelectorAll('.timestamp-link').forEach(link => {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      const seconds = parseInt(this.getAttribute('data-seconds'), 10);
+      const video = document.querySelector('video');
+      if (video && !isNaN(seconds)) {
+        video.currentTime = seconds;
+        video.play();
+      }
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function askQuestion(videoId) {
   const questionInput = document.getElementById('question-input');
   const answerDiv = document.getElementById('answer');
   const askButton = document.getElementById('ask-button');
-  
+
   const question = questionInput.value.trim();
-  const currentTime = Date.now()
+  const currentTime = Date.now();
   if (currentTime - last_question_asked < API_COOLDOWN) {
-    showNotification('Please wait a moment before asking another question', 'error')
-    return; 
+    showNotification('Please wait a moment before asking another question', 'error');
+    return;
   }
   if (!question) {
     showNotification('Please enter a question', 'error');
     return;
   }
-  
-  // Show loading state
+
   askButton.textContent = 'Asking...';
   askButton.disabled = true;
   answerDiv.style.display = 'block';
   answerDiv.innerHTML = 'Loading answer...';
-  
-  // fetch('http://localhost:8000/ask_question', {
-  fetch('https://youtube-rag-assistant-7.onrender.com/ask_question', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      video_id: videoId, 
-      question: question,
-      n_results: N_RESULTS
-    })
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-      return response.json();
-    })
-    .then(data => {
-      const response = data.response;
-      const textResponseMatch = response.match(/^(.*?)\s*TIMESTAMPS:/s);
-      let html = ""; 
-      if (textResponseMatch) {
-        html += `<strong>Answer:</strong> ${textResponseMatch[1].trim()}<br><br>`;
-      }
-      const timestampMatch = response.match(/TIMESTAMPS:\s*(.+)/s)
-      console.log("Timestamp Match", timestampMatch)
-      if (timestampMatch) {
-        html += `<strong>Most Relevant Timestamps: </strong>`;
-        if (timestampMatch[1] == 'NONE' || timestampMatch[1] == 'none') {
-          html += `No related content to your question was found at any timestamps.`
-        } else {
-          const timestampStrings = timestampMatch[1].split(',').map(s => s.trim());
-          html += '<ul style="padding-left: 16px;">';
-          timestampStrings.forEach(timeStr => {
-            const seconds = Math.floor(parseFloat(timeStr));
-            let formattedTime; 
-            const time = new Date(seconds * 1000);
-            if (seconds >= 3600) {
-              formattedTime = moment(time).format('HH:mm:ss');
-            } else {
-              formattedTime = moment(time).format('mm:ss');
-            }
-            console.log("formatted time", formattedTime);
-            html += `<li>
-              <a href="#" class="timestamp-link" data-seconds="${seconds}">${formattedTime}</a>
-            </li>`;
-          });
-          html += '</ul>';
+
+  try {
+    const response = await fetch(`${API_BASE}/ask_question`, {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        video_id: videoId,
+        question: question,
+        n_results: N_RESULTS
+      })
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+    let startedAnswer = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const events = buffer.split('\n\n');
+      buffer = events.pop(); // keep the trailing partial event
+
+      for (const event of events) {
+        const line = event.replace(/^data:\s?/, '').trim();
+        if (!line || line === '[DONE]') continue;
+
+        let payload;
+        try {
+          payload = JSON.parse(line);
+        } catch (_) {
+          continue;
+        }
+
+        if (payload.type === 'token') {
+          fullText += payload.text;
+          startedAnswer = true;
+          renderAnswer(answerDiv, fullText);
+        } else if (payload.type === 'citations') {
+          renderCitations(answerDiv, payload.citations);
+        } else if (payload.type === 'error') {
+          throw new Error(payload.message || 'Server error');
         }
       }
-      
-      answerDiv.innerHTML = html;
+    }
 
-      document.querySelectorAll('.timestamp-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          const seconds = parseInt(this.getAttribute('data-seconds'), 10);
-          const video = document.querySelector('video');
-          if (video && !isNaN(seconds)) {
-            video.currentTime = seconds;
-            video.play();
-          }
-        });
-      });
-    })
-    .catch(err => {
-      answerDiv.innerHTML = `Error: ${err.message}`;
-      showNotification('Error getting answer', 'error');
-    })
-    .finally(() => {
-      askButton.textContent = 'Ask Question';
-      askButton.disabled = false;
-      last_question_asked = currentTime; 
-    });
+    if (!startedAnswer) {
+      answerDiv.innerHTML = 'No answer was returned. Please try again.';
+    }
+  } catch (err) {
+    answerDiv.innerHTML = `Error: ${err.message}`;
+    showNotification('Error getting answer', 'error');
+  } finally {
+    askButton.textContent = 'Ask Question';
+    askButton.disabled = false;
+    last_question_asked = currentTime;
+  }
 }
 
 const waitForYoutubeVideo = (selector, callback) => {
@@ -233,13 +330,13 @@ const waitForYoutubeVideo = (selector, callback) => {
       clearInterval(interval);
       const videoId = getVideoId();
       if (videoId) {
-        console.log("Retrieved Video ID", videoId)
+        console.log("Retrieved Video ID", videoId);
         loadTranscript(videoId);
       }
       callback();
     }
-  }, 300)
-}
+  }, 300);
+};
 
 waitForYoutubeVideo('ytd-watch-flexy', injectUI);
 window.addEventListener('yt-navigate-finish', () => {

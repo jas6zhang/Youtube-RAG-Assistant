@@ -27,6 +27,24 @@ The extension follows a simple architecture:
 - **Backend:** FastAPI server handles transcript loading, interacting with vector store and question answering.
 - **Vector Store:** ChromaDB stores transcript chunks as embeddings for fast semantic search.
 
+## Deployment & Security
+
+- **Auth:** Set the `API_KEY` env var on the backend to require an `X-API-Key`
+  header on every request. Set the same value in the extension's `API_KEY`
+  constant (`frontend/content-script.js`). This is light gating — the real
+  abuse protection is the server-side per-IP rate limit (`RATE_LIMIT_MAX` /
+  `RATE_LIMIT_WINDOW`).
+- **Vector store persistence:** ChromaDB writes to `CHROMA_DB_PATH` (default
+  `./chroma_db`). Point this at a mounted persistent disk in production — the
+  default filesystem on hosts like Render is ephemeral, so without a disk every
+  restart silently re-embeds every video and re-bills OpenAI.
+- **Transcript loading is async:** `POST /load_transcript` enqueues a background
+  job and returns immediately; the extension polls `GET /transcript_status/{id}`
+  (pending → loading_captions → transcribing → ready/error).
+- **Answers stream** over Server-Sent Events from `POST /ask_question`; each
+  cited timestamp comes back with the transcript snippet that supports it.
+- See `backend/.env.example` for all config.
+
 ## Notes
 - Realized that midway through the project, that the Youtube Auto-Generated captions are actually really accurate, and getting the transcript from the captions takes no time in comparision to the long delays of tedious process of having to download the audio, speed audio up and then using Whisper to transcribe. 
 - Speeding up audio for transcription also means all timestamps are “compressed.” and needed to multiple the stored segment times by speedup factor. Currently at 2x, but the higher the speedup, the less accurate the transcription and mapping in general. 
