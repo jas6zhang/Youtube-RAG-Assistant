@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — YouTube RAG Helper</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.6;
+         color: #222; max-width: 760px; margin: 40px auto; padding: 0 20px; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  h2 { font-size: 20px; margin-top: 32px; }
+  .updated { color: #666; font-size: 14px; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; }
+  a { color: #065fd4; }
+</style>
+</head>
+<body>
+  <h1>Privacy Policy — YouTube RAG Helper</h1>
+  <p class="updated">Last updated: July 22, 2026</p>
+
+  <p>YouTube RAG Helper ("the extension") is a Chrome extension that lets you ask
+  questions about the YouTube video you are currently watching and returns answers
+  with clickable timestamps. This policy explains what data the extension handles
+  and why.</p>
+
+  <h2>What we collect</h2>
+  <p>The extension only processes the minimum needed to answer your question:</p>
+  <ul>
+    <li><strong>The current video's ID</strong> — read from the YouTube page URL,
+    so the extension knows which video you are asking about.</li>
+    <li><strong>The question you type</strong> — the text you enter in the
+    assistant's input box.</li>
+  </ul>
+  <p>The extension does <strong>not</strong> collect your name, email, address,
+  passwords, payment information, location, browsing history, or any personally
+  identifiable information. It does not create an account, and it does not track
+  your activity across websites.</p>
+
+  <h2>How we use it</h2>
+  <p>When you load a video or ask a question, the video ID and your question are
+  sent over HTTPS to the extension's backend service. The backend:</p>
+  <ol>
+    <li>Fetches the video's transcript (from YouTube captions, or by transcribing
+    the audio when captions are unavailable).</li>
+    <li>Performs a semantic search over the transcript to find the relevant
+    sections.</li>
+    <li>Uses the OpenAI API to generate an answer and identify supporting
+    timestamps.</li>
+  </ol>
+  <p>This is the extension's single purpose. Your data is used only to produce the
+  answer you requested.</p>
+
+  <h2>Data sharing and retention</h2>
+  <ul>
+    <li><strong>Transcripts</strong> for a video may be cached by the backend so
+    repeated questions about the same video are faster and cheaper. Transcripts
+    are derived from publicly available video content.</li>
+    <li><strong>Your questions</strong> are sent to the OpenAI API to generate a
+    response. They are not sold, and they are not used for advertising, profiling,
+    creditworthiness, or any purpose unrelated to answering your question.</li>
+    <li>We use the following third-party service providers strictly to deliver the
+    extension's functionality:
+      <ul>
+        <li><strong>OpenAI</strong> — to generate answers and (when needed)
+        transcribe audio. See the
+        <a href="https://openai.com/policies/privacy-policy">OpenAI Privacy Policy</a>.</li>
+        <li><strong>The hosting provider</strong> running the backend service.</li>
+      </ul>
+    </li>
+  </ul>
+  <p>We do <strong>not</strong> sell or transfer your data to third parties outside
+  of these service-provider use cases.</p>
+
+  <h2>Your choices</h2>
+  <p>The extension only acts on the video you are watching and the question you
+  type. If you do not ask a question, no question data is sent. You can remove the
+  extension at any time from <code>chrome://extensions</code>.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes, the "Last updated" date above will be revised.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy can be filed as an issue at
+  <a href="https://github.com/jas6zhang/Youtube-RAG-Assistant/issues">github.com/jas6zhang/Youtube-RAG-Assistant/issues</a>.</p>
+</body>
+</html>
