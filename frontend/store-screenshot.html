@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: 1280px; height: 800px;
+    background: #0f0f0f;
+    font-family: Roboto, Arial, sans-serif;
+    color: #fff;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top bar */
+  .topbar {
+    height: 56px; display: flex; align-items: center;
+    padding: 0 24px; gap: 16px; background: #0f0f0f;
+    border-bottom: 1px solid #272727;
+  }
+  .yt-logo { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 20px; }
+  .yt-logo .play { color: #fff; background: #FF0000; border-radius: 4px; padding: 1px 6px; font-size: 14px; }
+  .searchbar {
+    flex: 1; max-width: 520px; margin: 0 auto;
+    display: flex; height: 40px;
+  }
+  .searchbar input {
+    flex: 1; background: #121212; border: 1px solid #303030;
+    border-radius: 20px 0 0 20px; padding: 0 16px; color: #ddd; font-size: 14px;
+  }
+  .searchbar .btn { width: 60px; background: #222; border: 1px solid #303030; border-left: none; border-radius: 0 20px 20px 0; }
+
+  /* Body layout */
+  .main { flex: 1; display: flex; padding: 24px; gap: 24px; }
+  .primary { flex: 1.6; min-width: 0; }
+  .secondary { flex: 1; max-width: 402px; }
+
+  .player {
+    width: 100%; aspect-ratio: 16/9; border-radius: 12px;
+    background:
+      radial-gradient(circle at 30% 35%, rgba(255,255,255,0.10), transparent 40%),
+      linear-gradient(135deg, #3b2f6b 0%, #7b2d5e 55%, #b23a48 100%);
+    position: relative; display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .player .playbtn {
+    width: 68px; height: 48px; background: rgba(0,0,0,0.55); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .player .playbtn:after { content: ""; border-left: 22px solid #fff; border-top: 13px solid transparent; border-bottom: 13px solid transparent; margin-left: 5px; }
+  .player .scrub { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,0.3); }
+  .player .scrub:before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 38%; background: #FF0000; }
+
+  .vtitle { font-size: 20px; font-weight: 700; margin: 16px 0 8px; line-height: 1.3; }
+  .vmeta { color: #aaa; font-size: 14px; }
+  .chips { display: flex; gap: 8px; margin-top: 16px; }
+  .chip { background: #272727; border-radius: 8px; height: 32px; padding: 0 12px; display: flex; align-items: center; font-size: 13px; color: #ddd; }
+
+  /* The extension UI (matches content-script.js markup/styles) */
+  #youtube-rag-ui {
+    background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 15px;
+    margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    font-family: Arial, sans-serif; color: #111; box-sizing: border-box;
+    position: relative;
+  }
+  #youtube-rag-ui h3 { margin: 0 0 10px 0; color: #333; font-size: 17px; }
+  #question-input {
+    width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;
+    margin-bottom: 10px; font-size: 13px; color: #333; min-height: 40px;
+  }
+  #ask-button { width: 100%; padding: 9px; background: red; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; }
+  #answer { margin-top: 10px; padding: 12px; background: #f5f5f5; border-radius: 4px; font-size: 13px; line-height: 1.5; color: #222; }
+  #answer ul { padding-left: 16px; margin: 6px 0 0 0; }
+  #answer li { margin-bottom: 8px; }
+  .timestamp-link { font-weight: bold; color: #065fd4; text-decoration: none; }
+  .snip { font-size: 12px; color: #555; margin-top: 2px; }
+  .support { text-align: right; font-size: 12px; margin-top: 10px; }
+  .support a { color: #888; text-decoration: none; }
+
+  .badge {
+    position: absolute; top: -12px; right: 12px; background: #FF0000; color: #fff;
+    font-family: Arial; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px;
+    letter-spacing: .3px;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="yt-logo"><span class="play">▶</span> YouTube</div>
+    <div class="searchbar"><input value="how transformers work" readonly><div class="btn"></div></div>
+    <div style="width:120px"></div>
+  </div>
+
+  <div class="main">
+    <div class="primary">
+      <div class="player">
+        <div class="playbtn"></div>
+        <div class="scrub"></div>
+      </div>
+      <div class="vtitle">Transformers Explained: Attention Is All You Need</div>
+      <div class="vmeta">248,913 views · Ask the assistant anything about this video →</div>
+      <div class="chips"><div class="chip">👍 12K</div><div class="chip">Share</div><div class="chip">Save</div><div class="chip">···</div></div>
+    </div>
+
+    <div class="secondary">
+      <div id="youtube-rag-ui">
+        <div class="badge">RAG ASSISTANT</div>
+        <h3>Youtube Video Assistant</h3>
+        <div id="question-input">Why is self-attention better than an RNN for long sequences?</div>
+        <button id="ask-button">Ask Question</button>
+        <div id="answer">
+          <strong>Answer:</strong> Self-attention lets the model relate every token to every other token in a single step, so long-range dependencies are captured directly instead of being passed along step-by-step. It also removes the sequential bottleneck of RNNs, making training far more parallelizable.
+          <br><br>
+          <strong>Most Relevant Timestamps:</strong>
+          <ul>
+            <li>
+              <a href="#" class="timestamp-link">3:12</a>
+              <div class="snip">“…attention connects any two positions with a constant number of operations…”</div>
+            </li>
+            <li>
+              <a href="#" class="timestamp-link">7:45</a>
+              <div class="snip">“…because there's no recurrence, the whole sequence is processed in parallel…”</div>
+            </li>
+          </ul>
+        </div>
+        <div class="support"><a href="#">❤️ Support this extension</a></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
